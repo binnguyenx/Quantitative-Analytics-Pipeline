@@ -65,6 +65,24 @@ type DecisionScenario struct {
 	CreatedAt   time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
 }
 
+// IngestedEvent stores profile update events consumed from Kafka.
+// The unique event_id is used for idempotent ingestion.
+type IngestedEvent struct {
+	ID             uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	EventID        string    `gorm:"size:128;uniqueIndex;not null"                  json:"event_id"`
+	EventType      string    `gorm:"size:64;index;not null"                         json:"event_type"`
+	UserID         uuid.UUID `gorm:"type:uuid;index;not null"                       json:"user_id"`
+	CorrelationID  string    `gorm:"size:128;index;not null"                        json:"correlation_id"`
+	EventTimestamp time.Time `gorm:"not null"                                       json:"event_timestamp"`
+	KafkaKey       string    `gorm:"size:128"                                       json:"kafka_key"`
+	KafkaTopic     string    `gorm:"size:128;index"                                 json:"kafka_topic"`
+	KafkaPartition int       `gorm:"not null"                                       json:"kafka_partition"`
+	KafkaOffset    int64     `gorm:"not null"                                       json:"kafka_offset"`
+	PayloadJSON    string    `gorm:"type:jsonb;not null"                            json:"payload_json"`
+	ProcessedAt    time.Time `gorm:"not null"                                       json:"processed_at"`
+	CreatedAt      time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+}
+
 // ScenarioType enumerates the kinds of simulations the engine supports.
 type ScenarioType string
 

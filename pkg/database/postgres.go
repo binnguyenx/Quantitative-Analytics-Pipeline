@@ -40,6 +40,7 @@ func NewPostgresDB(dsn string) (*gorm.DB, error) {
 		&domain.User{},
 		&domain.FinancialProfile{},
 		&domain.DecisionScenario{},
+		&domain.IngestedEvent{},
 	); err != nil {
 		return nil, fmt.Errorf("database: auto-migration failed: %w", err)
 	}

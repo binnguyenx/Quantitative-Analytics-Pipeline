@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/finbud/finbud-backend/internal/handler"
+	"github.com/finbud/finbud-backend/internal/metrics"
 	"github.com/finbud/finbud-backend/internal/middleware"
 )
 
@@ -24,6 +25,7 @@ func NewRouter(
 
 	// ── Health check ────────────────────────────────────────────
 	r.GET("/health", handler.HealthCheck)
+	r.GET("/metrics", gin.WrapH(metrics.Handler()))
 
 	// ── API v1 ──────────────────────────────────────────────────
 	v1 := r.Group("/api/v1")

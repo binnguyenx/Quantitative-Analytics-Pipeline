@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: FinBud
+    orgId: 1
+    folder: FinBud
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

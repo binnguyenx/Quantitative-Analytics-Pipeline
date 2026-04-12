@@ -98,12 +98,16 @@ func (s *ProfileService) UpsertProfile(ctx context.Context, profile *domain.Fina
 func (s *ProfileService) emitProfileUpdatedEvent(profile *domain.FinancialProfile) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	eventID := uuid.NewString()
+	now := time.Now().UTC()
 
 	payload, err := json.Marshal(map[string]interface{}{
-		"event":     "EVENT_PROFILE_UPDATED",
-		"user_id":   profile.UserID.String(),
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"data":      profile,
+		"event":          "EVENT_PROFILE_UPDATED",
+		"event_id":       eventID,
+		"correlation_id": eventID,
+		"user_id":        profile.UserID.String(),
+		"timestamp":      now.Format(time.RFC3339),
+		"data":           profile,
 	})
 	if err != nil {
 		log.Printf("profileService: marshal event error: %v", err)

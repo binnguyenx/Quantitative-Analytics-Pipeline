@@ -11,13 +11,16 @@ A high-performance Go backend that helps Gen-Z users make smarter financial deci
 | Database | PostgreSQL 16 (via [GORM](https://gorm.io)) |
 | Cache | Redis 7 |
 | Messaging | Apache Kafka 3.7 (KRaft — no Zookeeper) |
+| Observability | Prometheus + Grafana |
+| Load Testing | k6 |
 | Architecture | Clean Architecture / Hexagonal |
 
 ## Project Structure
 
 ```
 FINBUD/
-├── cmd/api/main.go                  # Entry point — DI wiring & graceful shutdown
+├── cmd/api/main.go                  # API entry point
+├── cmd/consumer/main.go             # Kafka ingestion consumer entry point
 ├── api/router.go                    # Gin route definitions (driving adapter)
 ├── internal/
 │   ├── config/config.go             # Env-based configuration loader
@@ -41,7 +44,10 @@ FINBUD/
 │   ├── database/postgres.go         # GORM connection + pool tuning
 │   ├── redis/redis.go               # Redis client factory
 │   └── kafka/producer.go            # Kafka writer wrapper
-├── migrations/001_init_schema.sql   # Reference DDL (also auto-migrated by GORM)
+├── migrations/001_init_schema.sql   # Base schema
+├── migrations/002_ingested_events.sql
+├── benchmarks/k6/ingestion.js       # Load profile updates to stress ingestion
+├── monitoring/                      # Prometheus + Grafana provisioning
 ├── docker-compose.yml               # Local dev infrastructure
 ├── Makefile                         # Dev commands
 ├── env.example                      # Sample environment variables
@@ -88,12 +94,58 @@ make run
 
 The API starts on `http://localhost:8080`.
 
-### 5. Verify
+### 5. Run the Kafka ingestion consumer
+
+```bash
+make consumer
+# or: go run ./cmd/consumer
+```
+
+Consumer metrics are exposed at `http://localhost:2113/metrics` by default.
+
+### 6. Verify
 
 ```bash
 curl http://localhost:8080/health
 # → {"service":"finbud-backend","status":"ok"}
 ```
+
+## Ingestion & Benchmark
+
+### Ingestion pipeline
+
+- Consumer group reads from `EVENT_PROFILE_UPDATED`
+- Event schema validation + idempotent `event_id` handling
+- Batch persist to `ingested_events` (unique `event_id`)
+- Retry with exponential backoff
+- Invalid events routed to DLQ topic `EVENT_PROFILE_UPDATED_DLQ`
+
+### Metrics
+
+- API metrics: `http://localhost:8080/metrics`
+- Consumer metrics: `http://localhost:2113/metrics`
+- Start dashboards:
+
+```bash
+make metrics-up
+```
+
+- Grafana: `http://localhost:3000` (admin/admin)
+- Prometheus: `http://localhost:9090`
+
+### Run benchmark
+
+```bash
+make bench
+```
+
+You can tune k6 stages with env vars:
+
+```bash
+BASE_URL=http://localhost:8080 STEADY_VUS=50 STEADY_DURATION=3m k6 run ./benchmarks/k6/ingestion.js
+```
+
+Use `BENCHMARK_REPORT.md` as the report template.
 
 ## API Endpoints
 
@@ -247,10 +299,14 @@ make help        # Show all available commands
 make tidy        # go mod tidy
 make build       # Build binary to bin/finbud-api
 make run         # Run the API server
+make consumer    # Run Kafka ingestion consumer
 make test        # Run all tests with race detector
 make lint        # Run golangci-lint
 make infra-up    # Start Docker infrastructure
 make infra-down  # Stop and remove Docker infrastructure
+make metrics-up  # Start Prometheus and Grafana
+make metrics-down # Stop Prometheus and Grafana
+make bench       # Run k6 ingestion benchmark
 ```
 
 ## License

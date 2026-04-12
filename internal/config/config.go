@@ -33,6 +33,15 @@ type Config struct {
 	// ── Kafka ───────────────────────────────────────
 	KafkaBrokers             string
 	KafkaTopicProfileUpdated string
+	KafkaTopicProfileDLQ     string
+	KafkaConsumerGroupID     string
+	KafkaBatchSize           int
+	KafkaBatchWaitMS         int
+	KafkaMaxRetries          int
+	KafkaRetryBackoffMS      int
+
+	// ── Metrics / Ingestion ─────────────────────────
+	ConsumerMetricsPort string
 }
 
 // Load reads a .env file (if present) and then populates Config
@@ -44,6 +53,22 @@ func Load() (*Config, error) {
 	redisDB, err := strconv.Atoi(getEnv("REDIS_DB", "0"))
 	if err != nil {
 		return nil, fmt.Errorf("config: invalid REDIS_DB value: %w", err)
+	}
+	kafkaBatchSize, err := strconv.Atoi(getEnv("KAFKA_CONSUMER_BATCH_SIZE", "100"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid KAFKA_CONSUMER_BATCH_SIZE value: %w", err)
+	}
+	kafkaBatchWaitMS, err := strconv.Atoi(getEnv("KAFKA_CONSUMER_BATCH_WAIT_MS", "500"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid KAFKA_CONSUMER_BATCH_WAIT_MS value: %w", err)
+	}
+	kafkaMaxRetries, err := strconv.Atoi(getEnv("KAFKA_CONSUMER_MAX_RETRIES", "3"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid KAFKA_CONSUMER_MAX_RETRIES value: %w", err)
+	}
+	kafkaRetryBackoffMS, err := strconv.Atoi(getEnv("KAFKA_CONSUMER_RETRY_BACKOFF_MS", "200"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid KAFKA_CONSUMER_RETRY_BACKOFF_MS value: %w", err)
 	}
 
 	return &Config{
@@ -63,6 +88,14 @@ func Load() (*Config, error) {
 
 		KafkaBrokers:             getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaTopicProfileUpdated: getEnv("KAFKA_TOPIC_PROFILE_UPDATED", "EVENT_PROFILE_UPDATED"),
+		KafkaTopicProfileDLQ:     getEnv("KAFKA_TOPIC_PROFILE_DLQ", "EVENT_PROFILE_UPDATED_DLQ"),
+		KafkaConsumerGroupID:     getEnv("KAFKA_CONSUMER_GROUP_ID", "finbud-ingestion-consumer"),
+		KafkaBatchSize:           kafkaBatchSize,
+		KafkaBatchWaitMS:         kafkaBatchWaitMS,
+		KafkaMaxRetries:          kafkaMaxRetries,
+		KafkaRetryBackoffMS:      kafkaRetryBackoffMS,
+
+		ConsumerMetricsPort: getEnv("CONSUMER_METRICS_PORT", "2113"),
 	}, nil
 }
 

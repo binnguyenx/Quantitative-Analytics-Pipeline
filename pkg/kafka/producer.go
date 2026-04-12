@@ -8,10 +8,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	kafkago "github.com/segmentio/kafka-go"
+
+	"github.com/finbud/finbud-backend/internal/metrics"
 )
 
 // Producer wraps a kafka-go Writer with FinBud-specific helpers.
@@ -23,7 +24,7 @@ type Producer struct {
 // `brokers` is a comma-separated list (e.g. "broker1:9092,broker2:9092").
 func NewProducer(brokers, topic string) *Producer {
 	w := &kafkago.Writer{
-		Addr:         kafkago.TCP(strings.Split(brokers, ",")...),
+		Addr:         kafkago.TCP(splitCSV(brokers)...),
 		Topic:        topic,
 		Balancer:     &kafkago.LeastBytes{},
 		BatchTimeout: 10 * time.Millisecond, // low latency
@@ -37,13 +38,16 @@ func NewProducer(brokers, topic string) *Producer {
 // Publish sends a single keyed message.  The key is typically
 // the user ID so all events for one user land on the same partition.
 func (p *Producer) Publish(ctx context.Context, key, value []byte) error {
+	start := time.Now()
 	msg := kafkago.Message{
 		Key:   key,
 		Value: value,
 	}
 	if err := p.writer.WriteMessages(ctx, msg); err != nil {
+		metrics.ObserveKafkaPublish("failed", float64(time.Since(start).Milliseconds()))
 		return fmt.Errorf("kafka: publish failed: %w", err)
 	}
+	metrics.ObserveKafkaPublish("success", float64(time.Since(start).Milliseconds()))
 	return nil
 }
 

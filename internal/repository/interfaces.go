@@ -35,3 +35,8 @@ type ScenarioRepository interface {
 	ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.DecisionScenario, error)
 }
 
+// IngestedEventRepository handles persistence for consumed Kafka events.
+type IngestedEventRepository interface {
+	CreateBatch(ctx context.Context, events []domain.IngestedEvent) (int64, error)
+}
+
