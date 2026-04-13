@@ -313,3 +313,62 @@ make bench       # Run k6 ingestion benchmark
 
 MIT
 
+## Analytics ML Service (Python)
+
+This repository now includes a standalone Python service at `analytics_ml_service/` for time-series forecasting and error-improvement tracking.
+
+### Assumed Input Schema
+
+CSV columns:
+
+- `target` (required, numeric)
+- `timestamp` (optional, parseable datetime)
+
+If `timestamp` is missing, the service keeps row order and still computes lag/rolling features leakage-safely.
+
+### What the service does
+
+- Load data -> clean -> generate features (lags, rolling mean/std, calendar)
+- Train `XGBoostRegressor`
+- Run walk-forward backtesting across multiple time folds
+- Compare and log MAPE before/after:
+  - `baseline_mape` (naive: `y_t = y_(t-1)`)
+  - `xgboost_mape`
+  - `delta_mape_abs`
+  - `delta_mape_pct`
+- Save model artifact + metadata + logs (CSV/JSON)
+
+### Run in one command
+
+```bash
+python -m analytics_ml_service.run_service --generate-sample
+```
+
+Optional custom file:
+
+```bash
+python -m analytics_ml_service.run_service --input path/to/your.csv
+```
+
+### Install Python dependencies
+
+```bash
+pip install -r analytics_ml_service/requirements.txt
+```
+
+### Unit tests
+
+```bash
+python -m unittest discover -s analytics_ml_service/tests
+```
+
+### Example console output
+
+```text
+[INFO] Walk-forward MAPE (before/after):
+  baseline_mape  : 2.9831
+  xgboost_mape   : 1.9447
+  delta_mape_abs : 1.0384
+  delta_mape_pct : 34.81%
+```
+

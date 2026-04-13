@@ -26,3 +26,10 @@ Thumbs.db
 pgdata/
 kafkadata/
 
+# Python analytics service generated outputs
+analytics_ml_service/artifacts/
+analytics_ml_service/logs/
+analytics_ml_service/data/sample_timeseries.csv
+__pycache__/
+*.pyc
+
