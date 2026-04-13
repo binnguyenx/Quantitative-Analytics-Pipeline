@@ -33,3 +33,9 @@ analytics_ml_service/data/sample_timeseries.csv
 __pycache__/
 *.pyc
 
+# Frontend telemetry dashboard
+telemetry-dashboard/node_modules/
+telemetry-dashboard/dist/
+telemetry-dashboard/.vite/
+telemetry-dashboard/tsconfig.tsbuildinfo
+

@@ -70,6 +70,39 @@ services:
       timeout: 10s
       retries: 5
 
+  telemetry:
+    image: golang:1.23
+    container_name: finbud-telemetry
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "go run ./cmd/telemetry"
+    environment:
+      TELEMETRY_PORT: 8081
+      TELEMETRY_METRICS_PORT: 2114
+      KAFKA_BROKERS: kafka:9092
+      REDIS_ADDR: redis:6379
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+      - "2114:2114"
+
+  telemetry-dashboard:
+    image: node:22-alpine
+    container_name: finbud-telemetry-dashboard
+    working_dir: /app/telemetry-dashboard
+    volumes:
+      - ./:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    depends_on:
+      - telemetry
+    ports:
+      - "5173:5173"
+
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: finbud-prometheus
