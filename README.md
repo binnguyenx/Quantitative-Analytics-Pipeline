@@ -300,6 +300,9 @@ make tidy        # go mod tidy
 make build       # Build binary to bin/finbud-api
 make run         # Run the API server
 make consumer    # Run Kafka ingestion consumer
+make telemetry   # Run realtime telemetry service (SSE + snapshot API)
+make telemetry-publisher # Publish sample telemetry metrics to Redis
+make dashboard   # Run Vue telemetry dashboard on :5173
 make test        # Run all tests with race detector
 make lint        # Run golangci-lint
 make infra-up    # Start Docker infrastructure
@@ -308,6 +311,141 @@ make metrics-up  # Start Prometheus and Grafana
 make metrics-down # Stop Prometheus and Grafana
 make bench       # Run k6 ingestion benchmark
 ```
+
+## Telemetry Service + Vue Dashboard
+
+The repository includes a realtime telemetry stack:
+
+- Backend service: `cmd/telemetry` + `internal/telemetry`
+- Frontend dashboard: `telemetry-dashboard` (Vue 3 + TypeScript + Pinia + Chart.js)
+- Stream protocol: **SSE** (`/telemetry/stream`) for simple one-way realtime updates with native browser reconnect.
+
+### Why SSE (instead of WebSocket)
+
+- Native browser auto-reconnect behavior for server->client metrics stream.
+- Lower complexity for read-only telemetry feeds (no bidirectional requirement).
+- Easy to debug with plain HTTP and proxy support.
+
+### Telemetry architecture
+
+1. Ingestion:
+   - Kafka consumer reads `KAFKA_TOPIC_TELEMETRY` (default `EVENT_PROFILE_UPDATED`).
+   - Optional Redis Pub/Sub reads `TELEMETRY_REDIS_CHANNEL` (default `telemetry.metrics`).
+2. Aggregation:
+   - Normalizes payload into `timestamp/source/metric_name/value/tags`.
+   - Computes rolling windows `1m/5m/15m`: throughput, error_rate, latency p50/p95/p99.
+   - Stores latest snapshot into Redis key `telemetry:snapshot`.
+3. Transport:
+   - REST snapshot: `GET /telemetry/snapshot`
+   - SSE stream: `GET /telemetry/stream`
+   - Health/readiness: `GET /health`, `GET /ready`
+   - Prometheus metrics: `:2114/metrics`
+
+### Data contract (schema_version = v1)
+
+Envelope:
+
+```json
+{
+  "schema_version": "v1",
+  "event_type": "snapshot | delta_update | heartbeat | error",
+  "generated_at": "2026-04-13T10:00:00Z",
+  "payload": {}
+}
+```
+
+Snapshot / delta payload (shape):
+
+```json
+{
+  "schema_version": "v1",
+  "generated_at": "2026-04-13T10:00:00Z",
+  "windows": {
+    "1m": {
+      "event_count": 43,
+      "error_count": 3,
+      "throughput": 0.7167,
+      "error_rate": 6.9767,
+      "latency_ms": { "p50": 90, "p95": 180, "p99": 240 },
+      "window_label": "1m"
+    }
+  },
+  "consumer_lag": 4,
+  "recent_points": [
+    {
+      "timestamp": "2026-04-13T10:00:00Z",
+      "throughput": 0.7167,
+      "error_rate": 6.9767,
+      "latency_p95": 180,
+      "consumer_lag": 4
+    }
+  ]
+}
+```
+
+### Run end-to-end locally
+
+1) Start infra:
+
+```bash
+make infra-up
+```
+
+2) Run telemetry backend:
+
+```bash
+make telemetry
+```
+
+3) (Optional) Generate sample realtime metrics via Redis:
+
+```bash
+make telemetry-publisher
+```
+
+4) Run dashboard:
+
+```bash
+make dashboard
+```
+
+Then open [http://localhost:5173](http://localhost:5173).
+
+### Expected dashboard output
+
+- Connection badge switches among `connected/reconnecting/disconnected`.
+- KPI cards show current:
+  - throughput (1m)
+  - error rate (1m)
+  - latency p95 (1m)
+  - consumer lag
+- Charts update continuously for throughput, error rate, latency p95, and lag.
+- If stream disconnects, dashboard falls back to polling snapshot every 5s.
+
+### Tests
+
+Backend:
+
+```bash
+go test ./internal/telemetry/...
+```
+
+Frontend:
+
+```bash
+make dashboard-test
+```
+
+### Troubleshooting
+
+- Empty dashboard:
+  - check `GET http://localhost:8081/telemetry/snapshot`
+  - run `make telemetry-publisher` to emit sample metrics
+- Stream disconnect loops:
+  - verify telemetry backend on `:8081`
+  - check browser devtools EventSource errors
+- No Kafka metrics:
+  - confirm topic exists and telemetry service can reach `KAFKA_BROKERS`
 
 ## License
 
