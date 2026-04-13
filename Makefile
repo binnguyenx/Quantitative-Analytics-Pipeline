@@ -1,7 +1,7 @@
 # FinBud Backend — Makefile
 # Common development commands.
 
-.PHONY: help run consumer build test lint infra-up infra-down metrics-up metrics-down bench tidy
+.PHONY: help run consumer telemetry telemetry-publisher dashboard dashboard-build dashboard-test build test lint infra-up infra-down metrics-up metrics-down bench tidy
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -18,6 +18,21 @@ run: ## Run the API server locally
 
 consumer: ## Run the Kafka ingestion consumer
 	go run ./cmd/consumer
+
+telemetry: ## Run telemetry streaming service
+	go run ./cmd/telemetry
+
+telemetry-publisher: ## Publish sample telemetry metrics to Redis pub/sub
+	go run ./cmd/telemetry-publisher
+
+dashboard: ## Run Vue telemetry dashboard
+	cd telemetry-dashboard && npm install && npm run dev
+
+dashboard-build: ## Build Vue telemetry dashboard
+	cd telemetry-dashboard && npm install && npm run build
+
+dashboard-test: ## Run Vue telemetry dashboard tests
+	cd telemetry-dashboard && npm install && npm run test
 
 test: ## Run all tests
 	go test -race -count=1 ./...

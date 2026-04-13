@@ -42,6 +42,17 @@ type Config struct {
 
 	// ── Metrics / Ingestion ─────────────────────────
 	ConsumerMetricsPort string
+
+	// ── Telemetry service ───────────────────────────
+	TelemetryPort                 string
+	TelemetryMetricsPort          string
+	KafkaTopicTelemetry           string
+	TelemetryKafkaConsumerGroupID string
+	TelemetryKafkaBatchSize       int
+	TelemetryKafkaBatchWaitMS     int
+	TelemetryRedisChannel         string
+	TelemetrySnapshotTTLSeconds   int
+	TelemetryStreamBufferSize     int
 }
 
 // Load reads a .env file (if present) and then populates Config
@@ -70,6 +81,22 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config: invalid KAFKA_CONSUMER_RETRY_BACKOFF_MS value: %w", err)
 	}
+	telemetryKafkaBatchSize, err := strconv.Atoi(getEnv("TELEMETRY_KAFKA_BATCH_SIZE", "100"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid TELEMETRY_KAFKA_BATCH_SIZE value: %w", err)
+	}
+	telemetryKafkaBatchWaitMS, err := strconv.Atoi(getEnv("TELEMETRY_KAFKA_BATCH_WAIT_MS", "500"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid TELEMETRY_KAFKA_BATCH_WAIT_MS value: %w", err)
+	}
+	telemetrySnapshotTTLSeconds, err := strconv.Atoi(getEnv("TELEMETRY_SNAPSHOT_TTL_SECONDS", "120"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid TELEMETRY_SNAPSHOT_TTL_SECONDS value: %w", err)
+	}
+	telemetryStreamBufferSize, err := strconv.Atoi(getEnv("TELEMETRY_STREAM_BUFFER_SIZE", "32"))
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid TELEMETRY_STREAM_BUFFER_SIZE value: %w", err)
+	}
 
 	return &Config{
 		ServerPort: getEnv("SERVER_PORT", "8080"),
@@ -96,6 +123,16 @@ func Load() (*Config, error) {
 		KafkaRetryBackoffMS:      kafkaRetryBackoffMS,
 
 		ConsumerMetricsPort: getEnv("CONSUMER_METRICS_PORT", "2113"),
+
+		TelemetryPort:                 getEnv("TELEMETRY_PORT", "8081"),
+		TelemetryMetricsPort:          getEnv("TELEMETRY_METRICS_PORT", "2114"),
+		KafkaTopicTelemetry:           getEnv("KAFKA_TOPIC_TELEMETRY", "EVENT_PROFILE_UPDATED"),
+		TelemetryKafkaConsumerGroupID: getEnv("TELEMETRY_KAFKA_CONSUMER_GROUP_ID", "finbud-telemetry-consumer"),
+		TelemetryKafkaBatchSize:       telemetryKafkaBatchSize,
+		TelemetryKafkaBatchWaitMS:     telemetryKafkaBatchWaitMS,
+		TelemetryRedisChannel:         getEnv("TELEMETRY_REDIS_CHANNEL", "telemetry.metrics"),
+		TelemetrySnapshotTTLSeconds:   telemetrySnapshotTTLSeconds,
+		TelemetryStreamBufferSize:     telemetryStreamBufferSize,
 	}, nil
 }
 
