@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -19,6 +20,9 @@ var (
 
 	kafkaPublishTotal *prometheus.CounterVec
 	kafkaPublishMS    prometheus.Histogram
+
+	apiRequestTotal   *prometheus.CounterVec
+	apiRequestLatency *prometheus.HistogramVec
 )
 
 func initMetrics() {
@@ -54,6 +58,17 @@ func initMetrics() {
 		Help:    "Kafka publish latency in milliseconds.",
 		Buckets: []float64{1, 2, 5, 10, 25, 50, 100, 250, 500, 1000},
 	})
+
+	apiRequestTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "api_http_requests_total",
+		Help: "Total API requests by method, route and status.",
+	}, []string{"method", "route", "status"})
+
+	apiRequestLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "api_http_request_latency_ms",
+		Help:    "API request latency in milliseconds by method, route and status.",
+		Buckets: []float64{1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2000, 5000},
+	}, []string{"method", "route", "status"})
 }
 
 func ensure() {
@@ -83,6 +98,13 @@ func ObserveKafkaPublish(status string, latencyMS float64) {
 	ensure()
 	kafkaPublishTotal.WithLabelValues(status).Inc()
 	kafkaPublishMS.Observe(latencyMS)
+}
+
+func ObserveAPIRequest(method, route string, status int, latencyMS float64) {
+	ensure()
+	statusLabel := fmt.Sprintf("%d", status)
+	apiRequestTotal.WithLabelValues(method, route, statusLabel).Inc()
+	apiRequestLatency.WithLabelValues(method, route, statusLabel).Observe(latencyMS)
 }
 
 func Handler() http.Handler {

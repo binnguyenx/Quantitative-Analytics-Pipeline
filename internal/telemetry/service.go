@@ -205,11 +205,20 @@ func (s *Service) runRedisLoop(ctx context.Context) {
 func (s *Service) pushEvents(ctx context.Context, events []NormalizedEvent) {
 	for _, ev := range events {
 		s.aggregator.AddEvent(ev)
-		telemetryEventsIngested.WithLabelValues(ev.Source).Inc()
+		status := ev.Tags["status"]
+		observeTelemetryEvent(ev.Source, status)
+		if ev.MetricName == "latency_ms" {
+			observeTelemetryLatency(ev.Value)
+		}
+		if ev.MetricName == "consumer_lag" {
+			setTelemetryConsumerLag(ev.Value)
+		}
 	}
 	snapshot := s.aggregator.Snapshot(time.Now().UTC())
-	if err := s.cache.SaveSnapshot(ctx, snapshot); err != nil {
-		s.logger.Warn("cache snapshot failed", "error", err)
+	if s.cache != nil {
+		if err := s.cache.SaveSnapshot(ctx, snapshot); err != nil {
+			s.logger.Warn("cache snapshot failed", "error", err)
+		}
 	}
 	env := StreamEnvelope{
 		SchemaVersion: SchemaVersion,

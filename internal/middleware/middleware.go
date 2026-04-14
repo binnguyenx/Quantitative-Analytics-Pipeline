@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/finbud/finbud-backend/internal/metrics"
 )
 
 // RequestLogger logs every incoming request with its latency.
@@ -18,6 +20,11 @@ func RequestLogger() gin.HandlerFunc {
 
 		latency := time.Since(start)
 		status := c.Writer.Status()
+		route := c.FullPath()
+		if route == "" {
+			route = path
+		}
+		metrics.ObserveAPIRequest(c.Request.Method, route, status, float64(latency.Milliseconds()))
 
 		log.Printf("[%s] %d %s %s (%v)",
 			c.Request.Method, status, path, c.ClientIP(), latency,
@@ -42,4 +49,3 @@ func CORS() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
