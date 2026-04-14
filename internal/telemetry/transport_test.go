@@ -44,6 +44,24 @@ func TestSnapshotEndpoint(t *testing.T) {
 	}
 }
 
+func TestHealthAndReadinessEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	agg := NewAggregator(5)
+	hub := NewHub(4)
+	transport := NewTransport(agg, hub, nil)
+	r := gin.New()
+	transport.RegisterRoutes(r)
+
+	for _, route := range []string{"/health", "/ready"} {
+		req := httptest.NewRequest(http.MethodGet, route, nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 for %s, got %d", route, w.Code)
+		}
+	}
+}
+
 func TestStreamEndpointSendsSnapshotEvent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	agg := NewAggregator(5)
