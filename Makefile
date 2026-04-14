@@ -1,7 +1,7 @@
 # FinBud Backend — Makefile
 # Common development commands.
 
-.PHONY: help run consumer telemetry telemetry-publisher dashboard dashboard-build dashboard-test build test lint infra-up infra-down metrics-up metrics-down bench tidy
+.PHONY: help run consumer telemetry telemetry-publisher dashboard dashboard-build dashboard-test test-integration test-ci build test lint infra-up infra-down metrics-up metrics-down bench tidy
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -33,6 +33,13 @@ dashboard-build: ## Build Vue telemetry dashboard
 
 dashboard-test: ## Run Vue telemetry dashboard tests
 	cd telemetry-dashboard && npm install && npm run test
+
+test-integration: ## Run backend integration tests (telemetry endpoints)
+	go test -count=1 -run 'TestSnapshotEndpoint|TestHealthAndReadinessEndpoints|TestStreamEndpointSendsSnapshotEvent' ./internal/telemetry
+
+test-ci: ## Run CI-equivalent local checks
+	go test -race -count=1 ./...
+	cd telemetry-dashboard && npm install && npm run test && npm run build
 
 test: ## Run all tests
 	go test -race -count=1 ./...

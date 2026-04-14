@@ -436,6 +436,55 @@ Frontend:
 make dashboard-test
 ```
 
+Integration (telemetry endpoints):
+
+```bash
+make test-integration
+```
+
+### Observability stack
+
+- Prometheus scrapes:
+  - API: `:8080/metrics`
+  - Consumer: `:2113/metrics`
+  - Telemetry: `:2114/metrics`
+- Grafana dashboards (provisioned from `monitoring/grafana/dashboards`):
+  - `FinBud Ingestion Overview`
+  - `FinBud Platform Observability`
+
+Start metrics stack:
+
+```bash
+make metrics-up
+```
+
+### CI (GitHub Actions)
+
+Workflow: `.github/workflows/ci.yml`
+
+Jobs:
+
+- `Go Lint and Test` (golangci-lint + `go test -race`)
+- `Frontend Test and Build` (`npm ci`, test, build)
+- `Telemetry Integration Tests` (health/ready/snapshot/stream checks)
+
+Run equivalent checks locally:
+
+```bash
+make test-ci
+```
+
+### Debugging CI failures
+
+- Go test/lint failure:
+  - run `go test -race -count=1 ./...`
+  - run `golangci-lint run ./...`
+- Frontend failure:
+  - `cd telemetry-dashboard && npm ci && npm run test && npm run build`
+- Integration failure:
+  - run `make test-integration`
+  - inspect telemetry endpoint tests in `internal/telemetry/transport_test.go`
+
 ### Troubleshooting
 
 - Empty dashboard:
